@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "api-gateway/**"
+      - "docker/**"
       - ".github/workflows/gateway-ci.yml"
   pull_request:
     branches:
@@ -47,6 +48,14 @@ jobs:
 
       - name: Run tests and build application
         run: gradle --no-daemon clean test bootJar
+
+      - name: Validate root Docker Compose configuration
+        run: |
+          cp ../docker/.env.example ../docker/.env
+          docker compose -f ../docker/docker-compose.yml config --quiet
+
+      - name: Build API Gateway Docker image through root Compose
+        run: docker compose -f ../docker/docker-compose.yml build api-gateway
 
       - name: Upload test reports
         if: always()
