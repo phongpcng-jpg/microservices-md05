@@ -48,4 +48,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run tests and build application
-        run: ./gradlew --no-daemon clean test bootJar
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon clean test bootJar
