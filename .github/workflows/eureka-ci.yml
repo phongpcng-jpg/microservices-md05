@@ -53,6 +53,14 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon clean test bootJar
 
+      - name: Validate Docker Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - name: Build Docker image
+        run: docker build --tag eureka-service:ci .
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
