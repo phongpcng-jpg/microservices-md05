@@ -13,6 +13,7 @@ on:
       - main
     paths:
       - "api-gateway/**"
+      - "docker/**"
       - ".github/workflows/gateway-ci.yml"
   workflow_dispatch:
 
