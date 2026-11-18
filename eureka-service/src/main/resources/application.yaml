@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: eureka-service
+  security:
+    user:
+      name: ${EUREKA_USERNAME}
+      password: ${EUREKA_PASSWORD}
 
 eureka:
   instance:
@@ -11,3 +15,22 @@ eureka:
   client:
     register-with-eureka: false
     fetch-registry: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: false
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Eureka service discovery server
