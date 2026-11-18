@@ -9,7 +9,7 @@ microservices-md05/
 ├── docker/
 │   ├── docker-compose.yml   # Central Docker Compose configuration
 │   └── .env.example         # Example variables for Docker Compose
-├── eureka-service/
+├── api-gateway/\n│   ├── src/\n│   ├── Dockerfile\n│   ├── .dockerignore\n│   └── build.gradle\n├── eureka-service/
 │   ├── src/
 │   ├── gradle/
 │   ├── Dockerfile
@@ -18,7 +18,7 @@ microservices-md05/
 │   └── gradlew
 └── .github/
     └── workflows/
-        └── eureka-ci.yml
+        ├── eureka-ci.yml\n        └── gateway-ci.yml
 ~~~
 
 ## Requirements
@@ -217,3 +217,153 @@ When adding a service, add its build context (for example ../user-service), Dock
 ## 7. CI
 
 The GitHub Actions workflow at .github/workflows/eureka-ci.yml runs the Eureka Gradle tests/build, validates the root Docker Compose configuration, and builds the Eureka Docker image. It is triggered by changes under eureka-service/, docker/, or the workflow file itself, as well as manual dispatch.
+
+---
+
+# API Gateway
+
+## 1. What it does
+
+The **api-gateway** is the single HTTP entry point for client requests. It routes requests to backend services using explicit Spring Cloud Gateway routes and Eureka service discovery. Business logic remains in the individual microservices.
+
+| Setting | Value |
+|---|---|
+| Application name | api-gateway |
+| Default port | 8080 |
+| Health endpoint | http://localhost:8080/actuator/health |
+
+### Routes
+
+| Public path | Eureka service | Path forwarded downstream |
+|---|---|---|
+| /api/users/** | user-service | /users/** |
+| /api/products/** | product-service | /products/** |
+| /api/carts/** | cart-service | /carts/** |
+
+The `StripPrefix=1` filter removes the first path segment (`api`). These routes are explicitly declared; the gateway does not automatically expose every service registered in Eureka.
+
+## 2. Dependencies and versions
+
+The service follows the same toolchain as eureka-service:
+- Java 21
+- Spring Boot 4.1.2
+- Spring Cloud 2025.1.4
+- Gradle 9.9.1
+
+Spring Cloud Gateway uses the reactive WebFlux server. Do not add `spring-boot-starter-web` (Spring MVC) to this service.
+
+## 3. Configure environment variables
+
+| Variable | Required | Default | Description |
+|---|---:|---|---|
+| SERVER_PORT | No | 8080 | Gateway HTTP port |
+| EUREKA_SERVER_URL | No | http://localhost:8761/eureka/ | Eureka registry URL; include URL-encoded Basic Auth credentials if Eureka security is enabled |
+| EUREKA_REGISTER_WITH_EUREKA | No | true | Register this gateway instance in Eureka |
+| EUREKA_FETCH_REGISTRY | No | true | Fetch the service registry |
+| USER_SERVICE_URI | No | lb://user-service | User service route destination |
+| PRODUCT_SERVICE_URI | No | lb://product-service | Product service route destination |
+| CART_SERVICE_URI | No | lb://cart-service | Cart service route destination |
+
+For local development, set `EUREKA_SERVER_URL` to the local Eureka URL with credentials, for example `http://admin:your-password@localhost:8761/eureka/`. URL-encode reserved characters in credentials. The gateway can start without Eureka; discovery-based requests cannot be routed until the registry and target service are available.
+
+## 4. Run normally (without Docker)
+
+Run from the repository root.
+
+### Linux / macOS
+
+~~~bash
+cd api-gateway
+
+export SERVER_PORT=8080
+export EUREKA_SERVER_URL='http://admin:replace-with-a-long-random-password@localhost:8761/eureka/'
+
+gradle bootRun
+~~~
+
+### Windows PowerShell
+
+~~~powershell
+cd api-gateway
+
+$env:SERVER_PORT = "8080"
+$env:EUREKA_SERVER_URL = "http://admin:replace-with-a-long-random-password@localhost:8761/eureka/"
+
+gradle bootRun
+~~~
+
+Run tests and build the executable JAR:
+
+~~~bash
+gradle clean test bootJar
+~~~
+
+The service uses the Gradle 9.9.1 toolchain. Install Gradle 9.9.1 locally for these commands; CI and the Docker build provision this version automatically.
+
+## 5. Run with root Docker Compose
+
+The API Gateway is included in the central `docker/docker-compose.yml`.
+
+### Step 1 — Prepare environment
+
+From the repository root:
+
+~~~bash
+cp docker/.env.example docker/.env
+~~~
+
+Set a strong `EUREKA_PASSWORD` in `docker/.env`. Keep the gateway bound to loopback for local development:
+
+~~~dotenv
+EUREKA_USERNAME=admin
+EUREKA_PASSWORD=replace-with-a-long-random-password
+EUREKA_BIND_IP=127.0.0.1
+EUREKA_HOST_PORT=8761
+GATEWAY_BIND_IP=127.0.0.1
+GATEWAY_HOST_PORT=8080
+~~~
+
+If the Eureka password contains URL-reserved characters, set `EUREKA_SERVER_URL` explicitly with URL-encoded credentials.
+
+### Step 2 — Build and start
+
+~~~bash
+docker compose -f docker/docker-compose.yml up -d --build eureka-service api-gateway
+~~~
+
+The gateway does not have a hard startup dependency on Eureka. It can start while Eureka is unavailable and retry discovery/registration as the registry becomes available.
+
+### Step 3 — Inspect
+
+~~~bash
+docker compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml logs -f api-gateway
+~~~
+
+Check the health endpoint at http://localhost:8080/actuator/health.
+
+### Stop services
+
+~~~bash
+docker compose -f docker/docker-compose.yml stop api-gateway
+~~~
+
+Stop the entire Compose stack:
+
+~~~bash
+docker compose -f docker/docker-compose.yml down
+~~~
+
+## 6. Testing independently
+
+The application context test disables Eureka discovery, so `gradle test` does not require a running Eureka server or backend microservices. Route-level integration tests with mock downstream services can be added as the service contracts become available.
+
+## 7. CI
+
+The workflow at `.github/workflows/gateway-ci.yml`:
+- Runs on changes under `api-gateway/**`, `docker/**`, or the workflow itself.
+- Sets up Java 21 and Gradle 9.9.1.
+- Runs `clean test bootJar`.
+- Validates the root Docker Compose configuration.
+- Builds the API Gateway image through root Compose.
+- Uploads test reports and the executable JAR.
