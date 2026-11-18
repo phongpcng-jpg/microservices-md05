@@ -1,11 +1,10 @@
-# Build the executable Spring Boot JAR.
-FROM eclipse-temurin:21-jdk AS build
+# Build the executable Spring Boot JAR with the repository's Gradle version.
+FROM gradle:9.9.1-jdk21 AS build
 
 WORKDIR /workspace
 
-COPY . .
-RUN chmod +x gradlew \
-    && ./gradlew --no-daemon clean bootJar -x test \
+COPY --chown=gradle:gradle . .
+RUN gradle --no-daemon clean bootJar -x test \
     && set -eux; \
        JAR_FILE="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)"; \
        test -n "$JAR_FILE"; \
