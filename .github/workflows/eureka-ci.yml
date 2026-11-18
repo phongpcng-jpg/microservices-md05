@@ -6,12 +6,14 @@ on:
       - main
     paths:
       - "eureka-service/**"
+      - "docker/**"
       - ".github/workflows/eureka-ci.yml"
   pull_request:
     branches:
       - main
     paths:
       - "eureka-service/**"
+      - "docker/**"
       - ".github/workflows/eureka-ci.yml"
   workflow_dispatch:
 
@@ -26,7 +28,7 @@ jobs:
   build:
     name: Build and test Eureka Service
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: eureka-service
@@ -53,13 +55,13 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon clean test bootJar
 
-      - name: Validate Docker Compose configuration
+      - name: Validate root Docker Compose configuration
         run: |
-          cp .env.example .env
-          docker compose config --quiet
+          cp ../docker/.env.example ../docker/.env
+          docker compose -f ../docker/docker-compose.yml config --quiet
 
-      - name: Build Docker image
-        run: docker build --tag eureka-service:ci .
+      - name: Build Eureka Docker image through root Compose
+        run: docker compose -f ../docker/docker-compose.yml build eureka-service
 
       - name: Upload test reports
         if: always()

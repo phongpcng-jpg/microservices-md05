@@ -1,7 +1,7 @@
 services:
   eureka-service:
     build:
-      context: .
+      context: ../eureka-service
       dockerfile: Dockerfile
     image: eureka-service:local
     container_name: eureka-service
@@ -23,3 +23,10 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    name: microservices-network
+    driver: bridge
