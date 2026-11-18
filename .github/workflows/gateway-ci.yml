@@ -24,9 +24,6 @@ concurrency:
 
 jobs:
   build:
-    # The workflow is added before the service scaffold. Skip cleanly until
-    # api-gateway/gradlew exists; subsequent service commits will run this job.
-    if: ${{ hashFiles('api-gateway/gradlew') != '' }}
     name: Build and test API Gateway
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -43,13 +40,13 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Gradle
+      - name: Set up Gradle 9.9.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.9.1"
 
       - name: Run tests and build application
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon clean test bootJar
+        run: gradle --no-daemon clean test bootJar
 
       - name: Upload test reports
         if: always()
