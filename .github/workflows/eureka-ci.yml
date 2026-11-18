@@ -26,6 +26,7 @@ jobs:
   build:
     name: Build and test Eureka Service
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: eureka-service
@@ -51,3 +52,21 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon clean test bootJar
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eureka-service-test-reports
+          path: eureka-service/build/reports/tests/test/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload executable JAR
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eureka-service-boot-jar
+          path: eureka-service/build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 7
